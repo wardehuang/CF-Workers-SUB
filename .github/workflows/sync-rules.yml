@@ -1,0 +1,96 @@
+name: Sync Rules
+
+permissions:
+  contents: write
+
+on:
+  schedule:
+    - cron: "30 3 * * 1" # 每周一 03:30 UTC
+  workflow_dispatch:
+
+jobs:
+  sync_rules:
+    name: Sync upstream rule files
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download ACL4SSR rules
+        run: |
+          cd rules/ACL4SSR
+          urls=(
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/LocalAreaNetwork.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/UnBan.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/GoogleCN.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/SteamCN.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ChinaDomain.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ChinaCompanyIp.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/BanAD.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/BanProgramAD.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/GoogleFCM.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Microsoft.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Apple.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Telegram.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/OpenAi.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/YouTube.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/Netflix.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ProxyMedia.list"
+            "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ProxyLite.list"
+          )
+          for url in "${urls[@]}"; do
+            filename=$(basename "$url")
+            curl -sSL "$url" -o "$filename" && echo "OK: $filename" || echo "FAIL: $filename"
+          done
+
+      - name: Patch ChinaDomain.list with custom rules
+        run: |
+          file="rules/ACL4SSR/ChinaDomain.list"
+          # 添加自定义直连域名（如果不存在的话）
+          custom_domains=(
+            "oraclecloud.com"
+          )
+          for domain in "${custom_domains[@]}"; do
+            if ! grep -q "$domain" "$file"; then
+              sed -i "/oracle\.com/a DOMAIN-SUFFIX,$domain" "$file"
+              echo "Added: $domain"
+            else
+              echo "Already exists: $domain"
+            fi
+          done
+
+      - name: Download cmliu rules
+        run: |
+          cd rules/cmliu
+          urls=(
+            "https://raw.githubusercontent.com/cmliu/ACL4SSR/refs/heads/main/Clash/CFnat.list"
+            "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/adobe.list"
+            "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/IDM.list"
+            "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/Copilot.list"
+            "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/GithubCopilot.list"
+            "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/Claude.list"
+            "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/Emby.list"
+            "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/CMBlog.list"
+          )
+          for url in "${urls[@]}"; do
+            filename=$(basename "$url")
+            curl -sSL "$url" -o "$filename" && echo "OK: $filename" || echo "FAIL: $filename"
+          done
+
+      - name: Download ShellClash rules
+        run: |
+          cd rules/ShellClash
+          curl -sSL "https://raw.githubusercontent.com/juewuy/ShellClash/master/rules/ai.list" -o "ai.list" && echo "OK: ai.list" || echo "FAIL: ai.list"
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add rules/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: sync upstream rule files"
+            git push
+          fi
