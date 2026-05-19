@@ -15,7 +15,7 @@ let timestamp = 4102329600000;//2099-12-31
 let MainData = ``;
 
 let urls = [];
-let subConverter = "SUBAPI.cmliussss.net"; //在线订阅转换后端，目前使用CM的订阅转换功能。支持自建psub 可自行搭建https://github.com/bulianglin/psub
+let subConverter = "http://or.edmundvps.site"; //自建订阅转换后端(MetaCubeX/subconverter)
 let subConfig = "https://raw.githubusercontent.com/wardehuang/CF-Workers-SUB/main/config/ACL4SSR_Online_MultiCountry.ini"; //订阅配置文件
 let subProtocol = 'https';
 
@@ -112,11 +112,6 @@ export default {
 
 			let 追加UA = 'v2rayn';
 			if (url.searchParams.has('b64') || url.searchParams.has('base64')) 订阅格式 = 'base64';
-			else if (url.searchParams.has('clash')) 追加UA = 'clash';
-			else if (url.searchParams.has('singbox')) 追加UA = 'singbox';
-			else if (url.searchParams.has('surge')) 追加UA = 'surge';
-			else if (url.searchParams.has('quanx')) 追加UA = 'Quantumult%20X';
-			else if (url.searchParams.has('loon')) 追加UA = 'Loon';
 
 			const 订阅链接数组 = [...new Set(urls)].filter(item => item?.trim?.()); // 去重
 			if (订阅链接数组.length > 0) {
@@ -150,6 +145,10 @@ export default {
 			const uniqueLines = new Set(text.split('\n'));
 			const result = [...uniqueLines].join('\n');
 			//console.log(result);
+
+			// 直接传递节点链接给订阅转换后端（避免后端抓取URL时解析域名为IP）
+			const rawLinks = [...uniqueLines].filter(line => line.includes('://')).join('|');
+			if (rawLinks) 订阅转换URL = rawLinks;
 
 			let base64Data;
 			try {
