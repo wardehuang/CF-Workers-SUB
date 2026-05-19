@@ -51,6 +51,7 @@ jobs:
           custom_domains=(
             "oraclecloud.com"
             "oracleinfinity.io"
+            "edmundvps.site"
           )
           for domain in "${custom_domains[@]}"; do
             if ! grep -q "$domain" "$file"; then
