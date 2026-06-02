@@ -87,13 +87,14 @@ jobs:
             "DOMAIN-SUFFIX,hstatic.io"
           )
 
+          tmp_file="$(mktemp)"
+          grep -vxF -e "${custom_rules[0]}" -e "${custom_rules[1]}" "$file" > "$tmp_file"
+          mv "$tmp_file" "$file"
+
           for rule in "${custom_rules[@]}"; do
-            if grep -qxF "$rule" "$file"; then
-              echo "Already exists: $rule"
-            else
-              sed -i "/^DOMAIN,/i $rule" "$file"
-              echo "Added: $rule"
-            fi
+            sed -i "0,/^DOMAIN,/{/^DOMAIN,/i $rule
+            }" "$file"
+            echo "Ensured: $rule"
           done
 
       - name: Download ShellClash rules
