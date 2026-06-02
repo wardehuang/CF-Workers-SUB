@@ -79,6 +79,23 @@ jobs:
             curl -sSL "$url" -o "$filename" && echo "OK: $filename" || echo "FAIL: $filename"
           done
 
+      - name: Patch adobe.list with custom rules
+        run: |
+          file="rules/cmliu/adobe.list"
+          custom_rules=(
+            "DOMAIN-SUFFIX,adobestats.io"
+            "DOMAIN-SUFFIX,hstatic.io"
+          )
+
+          for rule in "${custom_rules[@]}"; do
+            if grep -qxF "$rule" "$file"; then
+              echo "Already exists: $rule"
+            else
+              sed -i "/^DOMAIN,/i $rule" "$file"
+              echo "Added: $rule"
+            fi
+          done
+
       - name: Download ShellClash rules
         run: |
           cd rules/ShellClash
