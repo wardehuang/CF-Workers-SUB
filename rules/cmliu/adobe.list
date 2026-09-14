@@ -4,12 +4,21 @@
 # Pop up window? Report at:
 # https://github.com/ignaciocastro/a-dove-is-dumb/issues
 # Or follow updates at https://a.dove.isdumb.one/telegram
-# Last update: 2026-09-03 02:02 UTC
+# Last update: 2026-09-06 06:13 UTC
 DOMAIN-SUFFIX,adobestats.io
 DOMAIN-SUFFIX,hstatic.io
-DOMAIN,ic.adobe.io
+DOMAIN,adobe.io
 DOMAIN,cc-api-data.adobe.io
+DOMAIN,crs.cr.adobe.com
 DOMAIN,fp.adobestats.io
+DOMAIN,gcos.adobe.io
+DOMAIN,hbc.adobe.io
+DOMAIN,ic.adobe.io
+DOMAIN,lcs-robs.adobe.io
+DOMAIN,lcs-ulecs.adobe.io
+DOMAIN,prod.adobegenuine.com
+DOMAIN,workflow.licenses.adobe.com
+DOMAIN,workflow-stage.licenses.adobe.com
 DOMAIN,0mo5a70cqa.adobe.io
 DOMAIN,1b9khekel6.adobe.io
 DOMAIN,1hzopx6nz7.adobe.io
@@ -1788,7 +1797,6 @@ DOMAIN,wxxukwhvlcp7.xwk4b.adobestats.io
 DOMAIN,qfo0y9d3ohxu.4e2id.adobestats.io
 DOMAIN,ogktn7dh1u.adobe.io
 DOMAIN,fqtfjwmddnvn.051my.adobestats.io
-DOMAIN,lcs-robs.adobe.io
 DOMAIN,s8ehmx99qw4z.4p4bv.adobestats.io
 DOMAIN,6sx70k2n.bgvqb.adobestats.io
 DOMAIN,m5eo8l308yn5.bgvqb.adobestats.io
@@ -1804,7 +1812,6 @@ DOMAIN,51htravd.4wbo1.adobestats.io
 DOMAIN,8kbj8x2r.xwk4b.adobestats.io
 DOMAIN,6pqb1f0d.7r39q.adobestats.io
 DOMAIN,ah2wt6iy.4e2id.adobestats.io
-DOMAIN,hbc.adobe.io
 DOMAIN,mjilgpuvz7.adobestats.io
 DOMAIN,yj1mifm2n4.adobestats.io
 DOMAIN,csbv68eh.jiegg.adobestats.io
@@ -2479,7 +2486,6 @@ DOMAIN,hzp3om8jr7.adobestats.io
 DOMAIN,m5s2furqby.7cnli.adobestats.io
 DOMAIN,ggrvx3yxdd.adobestats.io
 DOMAIN,gaac5p2y.4p4bv.adobestats.io
-DOMAIN,lcs-ulecs.adobe.io
 DOMAIN,uc8axrnlin0.pkxns.adobestats.io
 DOMAIN,zwp5hbxe.ay6tu.adobestats.io
 DOMAIN,cmdqm0fl.4p4bv.adobestats.io
@@ -2696,7 +2702,6 @@ DOMAIN,2vgrc3glsj.vf1av.adobestats.io
 DOMAIN,3w267rdagt.p5jr3.adobestats.io
 DOMAIN,cz7cgfnm6t.a13cy.adobestats.io
 DOMAIN,ose7nyyjlh.lqn0m.adobestats.io
-DOMAIN,crs.cr.adobe.com
 DOMAIN,gwzwlfgl4b.adobestats.io
 DOMAIN,vdcf8rui0fr.a13cy.adobestats.io
 DOMAIN,zeg3f5j2umh.lqn0m.adobestats.io
@@ -2951,13 +2956,11 @@ DOMAIN,up9pdj60.lqn0m.adobestats.io
 DOMAIN,k9bn1pb8.xwk4b.adobestats.io
 DOMAIN,du19xw8i.4p4bv.adobestats.io
 DOMAIN,j8awrvsh.wzwva.adobestats.io
-DOMAIN,gcos.adobe.io
 DOMAIN,dd4wnlnz4o4.wzwva.adobestats.io
 DOMAIN,dzgae2njxaq.lqn0m.adobestats.io
 DOMAIN,zfkju3qu.xwk4b.adobestats.io
 DOMAIN,ybnt1hdy.4p4bv.adobestats.io
 DOMAIN,uczq5cp8.xwk4b.adobestats.io
-DOMAIN,prod.adobegenuine.com
 DOMAIN,6o12rj6e.sf7e3.adobestats.io
 DOMAIN,bga0dy55fqj.xwk4b.adobestats.io
 DOMAIN,0bcampyyowr.lqn0m.adobestats.io
@@ -3553,7 +3556,6 @@ DOMAIN,t01w4lwuc.xwk4b.adobestats.io
 DOMAIN,q97bkqcvwh.adobestats.io
 DOMAIN,lqkw18jb.sf7e3.adobestats.io
 DOMAIN,m6zd0jnw.xwk4b.adobestats.io
-DOMAIN,adobe.io
 DOMAIN,v8qopmtw.lqn0m.adobestats.io
 DOMAIN,yfin3djujv.xwk4b.adobestats.io
 DOMAIN,f5jeo6zi0.xwk4b.adobestats.io
@@ -4657,8 +4659,6 @@ DOMAIN,yjhzw2pq3uu.jyqfm.adobestats.io
 DOMAIN,yooc080gjbs.jyqfm.adobestats.io
 DOMAIN,zhp234mvi9t1.jyqfm.adobestats.io
 DOMAIN,zrdjiy99m.jyqfm.adobestats.io
-DOMAIN,workflow.licenses.adobe.com
-DOMAIN,workflow-stage.licenses.adobe.com
 DOMAIN,ttghbajq.td3wc.adobestats.io
 DOMAIN,00l0620h.td3wc.adobestats.io
 DOMAIN,0fjqvt7lisx.td3wc.adobestats.io
@@ -5684,3 +5684,5 @@ DOMAIN,yg764x25r.4cbdo.adobestats.io
 DOMAIN,yhd0ulso1k2.4cbdo.adobestats.io
 DOMAIN,ymax7z224wf.4cbdo.adobestats.io
 DOMAIN,zm9vka6gfi2.4cbdo.adobestats.io
+DOMAIN,fekuerjze5.4cbdo.adobestats.io
+DOMAIN,fire-fly.adobe.io
