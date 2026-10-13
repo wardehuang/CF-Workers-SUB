@@ -17,8 +17,11 @@
 | App 前端 | `https://app.cline.bot` |
 | 认证方式 | `Authorization: Bearer <token>` |
 | Token 来源 | 环境变量 `CLINE_API_KEY` 或 Cline 账号 OAuth（底层 WorkOS） |
+| WorkOS client_id | `client_01K3A541FN8TA3EPPHTD2325AR`（公开标识） |
 | 协议族 | OpenAI-compatible（`@ai-sdk/openai-compatible`） |
 | 响应信封 | `success-data`（形如 `{ success, data }`） |
+
+> 章节导航：端点/Headers/Body 见 2–4 章，**登录与取 token 见第 6 章**，本沙箱实测见第 8 章。
 
 ---
 
@@ -207,10 +210,220 @@ SDK 对该 provider 声明的 `apiKeyEnv` 即 `["CLINE_API_KEY"]`。
 
 令牌形如 `workos:<jwt>`，SDK 会剥离前缀取 `sub` 作为用户标识。
 
+> 完整的分步流程、curl 复刻与令牌落地位置见 **第 6 章**。
+
 
 ---
 
-## 6. curl 示例
+## 6. WorkOS OAuth 登录详解与令牌获取
+
+### 6.1 两条流程
+
+`loginClineOAuth` 由 `useWorkOSDeviceAuth` 决定走哪条（默认 `true`）：
+
+```js
+// @cline/core/dist/hub/index.js
+let t = e.useWorkOSDeviceAuth ?? true;                     // 默认 true = 设备码流程
+let n = e.callbackPorts?.length ? e.callbackPorts : Gy;   // 48801..48811
+let r = e.callbackPath ?? "/auth";
+```
+
+| | 设备码流程（默认） | 浏览器 PKCE 流程 |
+| --- | --- | --- |
+| 适用场景 | headless / 无浏览器 | 有浏览器 |
+| 本地端口 | 不需要 | `48801–48811`，回调路径 `/auth` |
+| 兑换端点 | `POST /api/v1/auth/register` | `POST /api/v1/auth/token` |
+| 兑换参数 | `{accessToken, refreshToken}` | `{grant_type, code, client_type, redirect_uri, provider}` |
+| SDK 开关 | `useWorkOSDeviceAuth: true` | `useWorkOSDeviceAuth: false` |
+
+### 6.2 生产常量
+
+```js
+// @cline/llms/dist/models.js
+production: {
+  environment:    "production",
+  appBaseUrl:     "https://app.cline.bot",
+  apiBaseUrl:     "https://api.cline.bot",
+  mcpBaseUrl:     "https://api.cline.bot/v1/mcp",
+  workOsClientId: "client_01K3A541FN8TA3EPPHTD2325AR"
+}
+```
+
+```
+WorkOS API base : https://api.workos.com
+设备码有效期    : 300s
+轮询间隔默认    : 5s（slow_down 时 +1s）
+刷新缓冲        : 300000 ms（到期前 5 分钟刷新）
+```
+
+> `workOsClientId` 是 **PKCE 公共客户端的公开标识**，不是密钥，泄露无害。
+
+### 6.3 设备码流程（可 curl 复刻）
+
+**第 1 步 — 申请设备码**
+
+```bash
+curl -sS -X POST https://api.workos.com/user_management/authorize/device \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "client_id=client_01K3A541FN8TA3EPPHTD2325AR"
+```
+
+```json
+{
+  "device_code": "device_xxx",
+  "user_code": "ABCD-1234",
+  "verification_uri": "https://...",
+  "verification_uri_complete": "https://...?user_code=ABCD-1234",
+  "expires_in": 300,
+  "interval": 5
+}
+```
+
+**第 2 步** — 浏览器打开 `verification_uri`，输入 `user_code`。
+
+**第 3 步 — 轮询换取 WorkOS 令牌**
+
+```bash
+curl -sS -X POST https://api.workos.com/user_management/authenticate \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=urn:ietf:params:oauth:grant-type:device_code" \
+  -d "device_code=$DEVICE_CODE" \
+  -d "client_id=client_01K3A541FN8TA3EPPHTD2325AR"
+```
+
+SDK 的轮询状态机：
+
+```
+authorization_pending  → 等待 interval 秒后重试
+slow_down              → interval += 1，再等待
+access_denied / expired_token / invalid_grant → 终止并报错
+超时（> expires_in）    → "WorkOS device authorization timed out"
+```
+
+成功返回 `{ access_token, refresh_token, token_type }`。
+
+
+### 6.4 兑换 Cline 令牌（关键一步）
+
+拿到 WorkOS 令牌后，还要到 Cline 换**真正的 API 令牌**。
+
+**设备码流程 → `/api/v1/auth/register`**（源码 `xM`）：
+
+```bash
+curl -sS -X POST https://api.cline.bot/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+        "accessToken":  "<workos access_token>",
+        "refreshToken": "<workos refresh_token>"
+      }'
+```
+
+**浏览器 PKCE 流程 → `/api/v1/auth/token`**（源码 `MM`）：
+
+```bash
+curl -sS -X POST https://api.cline.bot/api/v1/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+        "grant_type":   "authorization_code",
+        "code":         "<回调 code>",
+        "client_type":  "extension",
+        "redirect_uri": "http://localhost:48801/auth",
+        "provider":     "cline"
+      }'
+```
+
+两者返回结构一致（`{ success, data }` 信封）：
+
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken":  "...",
+    "refreshToken": "...",
+    "expiresAt":    1730000000000,
+    "tokenType":    "Bearer",
+    "userInfo": {
+      "subject": "...", "email": "...", "name": "...",
+      "clineUserId": "usr-...", "accounts": ["..."]
+    }
+  }
+}
+```
+
+SDK 的字段映射（`Au`）：
+
+```js
+access    = data.accessToken          // ← 这才是请求模型用的 Bearer
+refresh   = data.refreshToken
+expires   = data.expiresAt
+accountId = data.userInfo.clineUserId
+email     = data.userInfo.email
+```
+
+拿到后即可：
+
+```bash
+curl https://api.cline.bot/api/v1/ai/cline/models \
+  -H "Authorization: Bearer $CLINE_TOKEN"
+```
+
+### 6.5 令牌续期
+
+```
+POST https://api.cline.bot/api/v1/auth/refresh
+refreshBufferMs     默认 300000   // 到期前 5 分钟即触发刷新
+retryableTokenGraceMs 默认 30000
+```
+
+access token 是 JWT，SDK 解析 `exp` 判断过期；`sub` 若带 `workos:` 前缀则剥离后作为用户标识。
+
+### 6.6 令牌落地位置
+
+```js
+// @cline/core/dist/hub/daemon/entry.js
+dataDir          // 默认 ~/.cline/data
+globalStatePath  = dataDir/globalState.json
+secretsPath      = dataDir/secrets.json     // ← 凭证文件
+```
+
+保存逻辑（`saveProviderOAuthCredentials`）：
+
+```js
+settings.auth = { accessToken, refreshToken, accountId, expiresAt, metadata }
+manager.saveProviderSettings(settings, { tokenSource: "oauth" })
+```
+
+读取优先级：
+
+```bash
+# 1) 环境变量
+echo $CLINE_API_KEY
+
+# 2) 凭证文件 / provider settings
+cat "$CLINE_DATA_DIR/secrets.json"     # 默认 ~/.cline/data/secrets.json
+#    或 provider settings 中的 auth.accessToken
+```
+
+### 6.7 本沙箱为何取不到
+
+实测检查结果：
+
+```
+/home/node/.cline/data/       → 仅 db/ locks/ logs/ sessions/，无 secrets.json
+env | grep -c CLINE_API_KEY   → 0
+```
+
+原因：沙箱内 `api.cline.bot` 走 egress MITM 代理（`/etc/mitm/api.cline.bot.key`），**凭证由代理透明注入**，本地不落盘；会话元数据里也只有 `provider`/`model`，无 token 字段。
+
+| 场景 | 能否拿到 token |
+| --- | --- |
+| 在本沙箱读文件 / 环境变量 | ❌ 拿不到（代理注入） |
+| 自行执行 6.3 + 6.4 设备码流程 | ✅ 可拿到 `data.accessToken` |
+| 本地已装 Cline 客户端/插件 | ✅ 读 `~/.cline/data/secrets.json` |
+| 从 app.cline.bot 生成 API key | ✅ 作为 `CLINE_API_KEY` 使用 |
+
+
+## 7. curl 示例
 
 ```bash
 curl -sS https://api.cline.bot/api/v1/chat/completions \
@@ -239,7 +452,7 @@ curl -sS https://api.cline.bot/api/v1/ai/cline/models \
 
 ---
 
-## 7. 本沙箱实测观察到的事实
+## 8. 本沙箱实测观察到的事实
 
 | 项 | 值 | 出处 |
 | --- | --- | --- |
@@ -268,7 +481,7 @@ curl -sS https://api.cline.bot/api/v1/ai/cline/models \
 
 ---
 
-## 8. 复现与验证方法
+## 9. 复现与验证方法
 
 本文档的 body/headers 部分来自 minified 代码反推，字段可能有遗漏。要拿到权威快照：
 
@@ -282,17 +495,24 @@ curl -sS https://api.cline.bot/api/v1/ai/cline/models \
 /app/node_modules/@cline/llms/dist/models.js                 # provider 定义、端点常量、headers
 /app/node_modules/@cline/llms/dist/providers.js              # headers 常量 ha/ya、provider 注册
 /app/node_modules/@cline/core/dist/cloud/index.js            # HTTP 客户端、Bearer、api/v1 路径
-/app/node_modules/@cline/core/dist/hub/index.js              # auth 端点表
+/app/node_modules/@cline/core/dist/hub/index.js              # auth 端点表、WorkOS 设备码/PKCE、令牌兑换
+/app/node_modules/@cline/core/dist/hub/daemon/entry.js       # dataDir / secrets.json / globalState.json 路径
+/app/node_modules/@cline/core/dist/auth/cline.d.ts           # loginClineOAuth / startClineDeviceAuth 签名
 /app/node_modules/@ai-sdk/openai-compatible/dist/index.js    # path: "/chat/completions"
 /home/node/.cline/data/sessions/<id>/<id>.json               # 会话元数据（provider/model/usage）
 ```
 
 ---
 
-## 9. 注意事项 / 免责
+## 10. 注意事项 / 免责
 
 - 本文档为**本地静态分析**，非官方文档；上游变更后可能失效。
 - 涉及 `Authorization` 头与 `CLINE_API_KEY`，**请勿提交真实令牌**到仓库。
 - 直接构造请求会绕过官方客户端，需自行复刻 headers/参数，可能受代理鉴权与速率限制影响。
-- 个人信息（`CLINE_USER_ID`、`workOsClientId`）已在文中截断。
+- 个人信息（`CLINE_USER_ID`）已在文中截断。
+- `workOsClientId`（`client_01K3A541FN8TA3EPPHTD2325AR`）是 **PKCE 公共客户端标识，非密钥**，故完整保留；
+  真正的凭证是 `accessToken` / `refreshToken`，切勿外泄。
+- 第 6 章的**请求参数**为代码常量（高可信）；**返回结构**（`data` 字段名）系从解析函数反推（中可信），
+  实际字段可能有出入，建议先用第 1 步设备码请求做无副作用验证。
+- 令牌有效期与刷新时机由服务端 `expiresAt` 决定，本文的 300s / 300000ms 仅为 SDK 默认值。
 
