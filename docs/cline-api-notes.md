@@ -423,6 +423,60 @@ env | grep -c CLINE_API_KEY   → 0
 | 从 app.cline.bot 生成 API key | ✅ 作为 `CLINE_API_KEY` 使用 |
 
 
+### 6.8 配套脚本
+
+仓库内提供可直接运行的登录脚本（Windows 11 优先）：
+
+```
+scripts/cline-device-login.ps1    # 主脚本（PowerShell 5.1 / 7 均可）
+scripts/cline-login.cmd           # Windows 双击/命令行包装（自动选 pwsh 或 powershell）
+```
+
+用法：
+
+```powershell
+# 直接运行
+powershell -ExecutionPolicy Bypass -File .\scripts\cline-device-login.ps1
+
+# 保存结果到文件（可选）
+.\scripts\cline-device-login.ps1 -OutFile "$env:USERPROFILE\.cline-token.json"
+
+# 无桌面环境（不自动开浏览器）
+.\scripts\cline-device-login.ps1 -NoBrowser
+```
+
+可用参数：
+
+| 参数 | 默认值 | 说明 |
+| --- | --- | --- |
+| `-ApiBaseUrl` | `$env:CLINE_API_BASE_URL` 或 `https://api.cline.bot` | Cline API 根地址 |
+| `-WorkOsBaseUrl` | `https://api.workos.com` | WorkOS API 根地址 |
+| `-ClientId` | `client_01K3A541FN8TA3EPPHTD2325AR` | WorkOS 公共客户端 ID |
+| `-TimeoutSeconds` | `300` | 轮询总超时 |
+| `-OutFile` | 无 | 将令牌写入 JSON 文件 |
+| `-NoBrowser` | 关 | 不自动打开浏览器 |
+| `-ShowWorkOsToken` | 关 | 额外打印 WorkOS 原始令牌 |
+
+实现要点（已在 PowerShell 7.4.6 上实测）：
+
+1. **必须处理非 2xx 响应体**——WorkOS 在未授权时返回 `400 {"error":"authorization_pending"}`，
+   若直接用 `Invoke-RestMethod` 会抛异常且拿不到 `error` 字段。脚本用 `Invoke-WebRequest`
+   配合 `catch` 读取响应流（PS 5.1）或 `$_.ErrorDetails.Message`（PS 7）。
+2. **Windows PowerShell 5.1 需显式启用 TLS 1.2**。
+3. 轮询遵循 `interval`，遇 `slow_down` 时 `interval += 1`。
+
+实测记录：
+
+```
+[1/4] 申请设备码 ...                     → 200，取得 device_code / user_code
+[2/4] 验证码 LZJG-DTLS，地址 https://authkit.cline.bot/device
+[3/4] 等待授权确认 ...  ...              → 400 authorization_pending 被正确识别并继续轮询
+      超时分支按预期抛出
+```
+
+> 注：第 4 步「兑换 Cline 令牌」需真实完成浏览器授权才能验证，沙箱内未覆盖。
+
+
 ## 7. curl 示例
 
 ```bash
@@ -500,6 +554,11 @@ curl -sS https://api.cline.bot/api/v1/ai/cline/models \
 /app/node_modules/@cline/core/dist/auth/cline.d.ts           # loginClineOAuth / startClineDeviceAuth 签名
 /app/node_modules/@ai-sdk/openai-compatible/dist/index.js    # path: "/chat/completions"
 /home/node/.cline/data/sessions/<id>/<id>.json               # 会话元数据（provider/model/usage）
+
+# 本仓库内配套产物
+scripts/cline-device-login.ps1                               # 设备码登录脚本（第 6.8 节）
+scripts/cline-login.cmd                                      # Windows 包装脚本
+docs/cline-api-notes.md                                      # 本文档
 ```
 
 ---
@@ -515,4 +574,9 @@ curl -sS https://api.cline.bot/api/v1/ai/cline/models \
 - 第 6 章的**请求参数**为代码常量（高可信）；**返回结构**（`data` 字段名）系从解析函数反推（中可信），
   实际字段可能有出入，建议先用第 1 步设备码请求做无副作用验证。
 - 令牌有效期与刷新时机由服务端 `expiresAt` 决定，本文的 300s / 300000ms 仅为 SDK 默认值。
+- `scripts/cline-device-login.ps1` 的**语法与 HTTP/轮询逻辑已在 PowerShell 7.4.6 实测通过**；
+  Windows 11 自带的 Windows PowerShell 5.1 走的是 `catch` + 响应流读取分支，**该分支未实测**，
+  如遇问题请改用 `pwsh`（`scripts/cline-login.cmd` 会自动优先选择 `pwsh`）。
+- 脚本第 4 步（兑换 Cline 令牌）需真实完成浏览器授权，未经端到端验证；若返回结构不符，
+  脚本会打印原始响应体便于排查。
 
